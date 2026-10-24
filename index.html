@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Watch & Earn</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<!-- Monetag: ZONE_ID বদলে আপনার আসল Zone ID বসান (Monetag ড্যাশবোর্ডের Telegram Mini App/Rewarded zone থেকে) -->
+<script src="//libtl.com/sdk.js" data-zone="ZONE_ID" data-sdk="show_ZONE_ID"></script>
+<style>
+  body{margin:0;font-family:system-ui,sans-serif;background:var(--tg-theme-bg-color,#fff);color:var(--tg-theme-text-color,#111);padding:16px}
+  .card{background:var(--tg-theme-secondary-bg-color,#f1f1f1);border-radius:16px;padding:18px;margin-bottom:14px;text-align:center}
+  .bal{font-size:38px;font-weight:700}
+  button{width:100%;padding:14px;border:0;border-radius:12px;font-size:16px;font-weight:600;background:var(--tg-theme-button-color,#2481cc);color:var(--tg-theme-button-text-color,#fff)}
+  button:disabled{opacity:.5}
+  input{width:100%;box-sizing:border-box;padding:12px;margin-bottom:8px;border-radius:10px;border:1px solid #ccc;font-size:15px}
+  small{opacity:.7}
+</style>
+</head>
+<body>
+  <div class="card">
+    <small>আপনার ব্যালেন্স</small>
+    <div class="bal">$<span id="bal">0.00</span></div>
+    <small>আজ বাকি: <span id="left">-</span> টি ভিডিও</small>
+  </div>
+
+  <div class="card">
+    <button id="watch">▶ ভিডিও দেখুন (+$<span id="rw">0.002</span>)</button>
+    <p id="msg"><small></small></p>
+  </div>
+
+  <div class="card">
+    <b>উইথড্র</b><br><small>সর্বনিম্ন $<span id="min">1</span></small><br><br>
+    <input id="method" placeholder="মেথড (bKash / Nagad / Binance)">
+    <input id="acc" placeholder="নম্বর / অ্যাকাউন্ট">
+    <button id="wd">টাকা তুলুন</button>
+  </div>
+
+<script>
+const tg = Telegram.WebApp; tg.ready(); tg.expand();
+const $ = id => document.getElementById(id);
+const say = t => $('msg').innerHTML = '<small>' + t + '</small>';
+const SHOW_AD = window.show_ZONE_ID; // ZONE_ID এখানেও একই বদলাতে হবে
+
+async function api(path, extra = {}) {
+  const r = await fetch(path, {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({initData: tg.initData, ...extra})});
+  const j = await r.json();
+  if (!r.ok) throw new Error(j.error || 'সমস্যা হয়েছে');
+  return j;
+}
+function render(s) {
+  $('bal').textContent = s.balance.toFixed(3);
+  $('left').textContent = s.left;
+  $('rw').textContent = s.reward;
+  $('min').textContent = s.min_withdraw;
+}
+
+$('watch').onclick = async () => {
+  $('watch').disabled = true;
+  try {
+    if (typeof SHOW_AD !== 'function') throw new Error('অ্যাড লোড হয়নি, Zone ID ঠিক আছে কিনা দেখুন');
+    await SHOW_AD();                 // ইউজার পুরো অ্যাড দেখলে promise resolve হয়
+    render(await api('/api/reward')); // তারপর সার্ভার ব্যালেন্স বাড়ায়
+    say('✅ ব্যালেন্স যোগ হয়েছে!');
+  } catch (e) { say('❌ ' + (e.message || 'অ্যাড দেখা সম্পূর্ণ হয়নি')); }
+  setTimeout(() => $('watch').disabled = false, 2000);
+};
+
+$('wd').onclick = async () => {
+  try {
+    render(await api('/api/withdraw', {method: $('method').value, account: $('acc').value}));
+    say('✅ উইথড্র রিকোয়েস্ট পাঠানো হয়েছে');
+  } catch (e) { say('❌ ' + e.message); }
+};
+
+api('/api/me').then(render).catch(e => say('❌ ' + e.message));
+</script>
+</body>
+</html>
